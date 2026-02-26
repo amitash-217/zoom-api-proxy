@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import os
+import logging
 
 from fastapi import FastAPI, HTTPException, Header, Request
 import hmac
@@ -72,7 +73,7 @@ async def process_webhook(request: Request, x_zm_signature: str = Header(None), 
             await client.post(N8N_URL, content=body_bytes, headers=headers, timeout=10.0)
             print(f"Background: Forwarded to {N8N_URL}")
         except Exception as e:
-            print(f"Background: Failed to forward. Error: {e}")
+            logging.error(f"Background: Failed to forward. Error: {e}", exc_info=True)
     
 @app.get('/oauth2redirect')
 def process_redirect(code: str):
