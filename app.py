@@ -11,6 +11,12 @@ import jwt
 APP_SECRET = os.getenv('APP_SECRET', '')
 JWT_SECRET = os.getenv('JWT_SECRET', '')
 N8N_URL = os.getenv('N8N_WEBHOOK_URL', '')
+
+if not all([APP_SECRET, JWT_SECRET, N8N_URL]):
+    raise EnvironmentError(
+        "CRITICAL STARTUP ERROR: Missing required environment variables. "
+    )
+
 app = FastAPI()
 
 @app.post('/zm_hook')
@@ -19,6 +25,20 @@ async def process_webhook(request: Request, x_zm_signature: str = Header(None), 
     if not x_zm_signature or not x_zm_request_timestamp:
         raise HTTPException(status_code=401, detail="Missing signature header")
     
+    request_body = await request.json()
+    if request_body.get('event') == 'endpoint.url_validation':
+        plain_token = request_body.get('payload').get('plainToken')
+        hashed_token = hmac.new(
+            key=APP_SECRET.encode(), 
+            msg=plain_token.encode('utf-8'), 
+            digestmod=hashlib.sha256
+        ).hexdigest()
+
+        return {
+            "plainToken": plain_token,
+            "encryptedToken": hashed_token
+        }
+        
     body_bytes = await request.body()
     body = body_bytes.decode('utf-8')
     payload = 'v0:' + x_zm_request_timestamp + ":" + body
